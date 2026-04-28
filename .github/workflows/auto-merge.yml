@@ -30,7 +30,7 @@ jobs:
     if: github.actor == github.repository_owner || contains(github.head_ref, 'feature/') || contains(github.head_ref, 'fix/') || contains(github.head_ref, 'refactor/') || contains(github.head_ref, 'docs/') || contains(github.head_ref, 'perf/') || contains(github.head_ref, 'test/')
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5.6.0
         with:
@@ -61,7 +61,7 @@ jobs:
     if: success() || failure()
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.DEVFLOW_PAT }}
 
@@ -103,7 +103,7 @@ jobs:
     needs: auto-review
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.DEVFLOW_PAT }}
 
