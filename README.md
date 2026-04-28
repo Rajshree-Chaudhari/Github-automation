@@ -135,8 +135,8 @@ devflow-automator/
 ### 1. Fork & Clone
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/devflow-automator.git
-cd devflow-automator
+git clone https://github.com/DeepDN/Github-automation.git
+cd Github-automation
 ```
 
 ### 2. Create a GitHub Personal Access Token (PAT)
