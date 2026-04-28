@@ -1,0 +1,226 @@
+name: 🤖 DevFlow Daily Automation
+
+on:
+  schedule:
+    # Runs at a fixed UTC time — organic delay added by the script itself
+    # Randomized across multiple cron schedules below for variety:
+    - cron: "0 9 * * 1"    # Monday    09:00 UTC
+    - cron: "0 14 * * 2"   # Tuesday   14:00 UTC
+    - cron: "0 11 * * 3"   # Wednesday 11:00 UTC
+    - cron: "0 16 * * 4"   # Thursday  16:00 UTC
+    - cron: "0 10 * * 5"   # Friday    10:00 UTC
+    - cron: "0 13 * * 6"   # Saturday  13:00 UTC (occasional weekend activity)
+
+  workflow_dispatch:
+    inputs:
+      change_type:
+        description: "Force a specific change type"
+        required: false
+        default: ""
+        type: choice
+        options: ["", "feature", "fix", "refactor", "docs", "perf", "test"]
+      dry_run:
+        description: "Dry run (no real commits)"
+        required: false
+        default: "false"
+        type: boolean
+      delay_seconds:
+        description: "Organic delay in seconds (0 = immediate)"
+        required: false
+        default: "0"
+
+env:
+  PYTHON_VERSION: "3.11"
+  PROJECT_NAME: "devflow-automator"
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Job 1: Pre-flight checks
+  # ──────────────────────────────────────────────────────────────────────────────
+  preflight:
+    name: 🔍 Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      change_type: ${{ steps.check.outputs.change_type }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine run parameters
+        id: check
+        run: |
+          # Check if we should skip (e.g., already ran today)
+          TODAY=$(date +%Y-%m-%d)
+          echo "Run date: $TODAY"
+          echo "should_run=true" >> $GITHUB_OUTPUT
+
+          # Resolve change type
+          CHANGE_TYPE="${{ github.event.inputs.change_type }}"
+          if [ -z "$CHANGE_TYPE" ]; then
+            TYPES=("feature" "fix" "refactor" "docs" "perf" "test")
+            WEIGHTS=(30 25 20 10 10 5)
+            # Weighted random selection via shell
+            RAND=$((RANDOM % 100))
+            CUM=0
+            for i in "${!TYPES[@]}"; do
+              CUM=$((CUM + WEIGHTS[i]))
+              if [ $RAND -lt $CUM ]; then
+                CHANGE_TYPE="${TYPES[$i]}"
+                break
+              fi
+            done
+          fi
+          echo "change_type=$CHANGE_TYPE" >> $GITHUB_OUTPUT
+          echo "Selected change type: $CHANGE_TYPE"
+
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.DEVFLOW_PAT }}" ]; then
+            echo "::error::DEVFLOW_PAT secret is not configured"
+            exit 1
+          fi
+          echo "✅ Secrets validated"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Job 2: Code quality gate (run on any feature/fix/perf PRs)
+  # ──────────────────────────────────────────────────────────────────────────────
+  quality-gate:
+    name: 🧪 Quality Gate
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: needs.preflight.outputs.should_run == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov flake8 black isort mypy
+
+      - name: Lint — flake8
+        run: flake8 src/ scripts/ config/ --max-line-length=120 --ignore=E203,W503
+        continue-on-error: true
+
+      - name: Format check — black
+        run: black --check --line-length=120 src/ scripts/ config/
+        continue-on-error: true
+
+      - name: Import sort check — isort
+        run: isort --check-only src/ scripts/
+        continue-on-error: true
+
+      - name: Type check — mypy
+        run: mypy src/ --ignore-missing-imports --no-strict-optional
+        continue-on-error: true
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --tb=short \
+            -q
+        continue-on-error: true
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Job 3: Run the automation orchestrator
+  # ──────────────────────────────────────────────────────────────────────────────
+  automate:
+    name: 🚀 Run DevFlow Orchestrator
+    runs-on: ubuntu-latest
+    needs: [preflight, quality-gate]
+    if: needs.preflight.outputs.should_run == 'true'
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DEVFLOW_PAT }}
+          fetch-depth: 0
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "${{ secrets.GIT_USER_NAME }}"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+      - name: Apply organic delay
+        if: github.event_name == 'schedule'
+        run: |
+          DELAY=$((RANDOM % 3600))
+          echo "Waiting ${DELAY}s for organic scheduling..."
+          sleep $DELAY
+
+      - name: Run orchestrator
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEVFLOW_PAT }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          REVIEWER_NAME: ${{ github.actor }}
+          DEFAULT_BRANCH: main
+        run: |
+          python scripts/orchestrator.py \
+            --change-type "${{ needs.preflight.outputs.change_type }}" \
+            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Job 4: Notify on failure
+  # ──────────────────────────────────────────────────────────────────────────────
+  notify-failure:
+    name: 📢 Notify on Failure
+    runs-on: ubuntu-latest
+    needs: automate
+    if: failure()
+
+    steps:
+      - name: Create failure issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEVFLOW_PAT }}
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 DevFlow Automation Failed — ${new Date().toISOString().split('T')[0]}`,
+              body: `## Automation Failure Report\n\n**Run ID:** ${context.runId}\n**Workflow:** ${context.workflow}\n**Trigger:** ${context.eventName}\n\nPlease review the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.\n\n/cc @${context.actor}`,
+              labels: ['automation', 'bug']
+            });

@@ -1,0 +1,56 @@
+name: 🧹 Weekly Maintenance
+
+on:
+  schedule:
+    - cron: "0 8 * * 0"  # Every Sunday at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  maintenance:
+    name: 🔧 Repository Maintenance
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DEVFLOW_PAT }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt gitpython
+
+      - name: Prune stale branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEVFLOW_PAT }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: python scripts/maintenance.py --prune-branches --older-than-days 7
+
+      - name: Close stale automation issues
+        uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.DEVFLOW_PAT }}
+          stale-issue-message: "This automation issue has been stale for 7 days and will be closed."
+          close-issue-message: "Closed by weekly maintenance sweep."
+          days-before-stale: 7
+          days-before-close: 1
+          only-labels: "automation"
+
+      - name: Generate weekly activity report
+        env:
+          GITHUB_TOKEN: ${{ secrets.DEVFLOW_PAT }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: python scripts/weekly_report.py
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-${{ github.run_id }}
+          path: reports/
+          retention-days: 30
