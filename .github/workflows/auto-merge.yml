@@ -13,6 +13,9 @@ on:
         required: true
         type: number
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: auto-merge-${{ github.head_ref || github.ref }}
   cancel-in-progress: false
@@ -27,9 +30,9 @@ jobs:
     if: github.actor == github.repository_owner || contains(github.head_ref, 'feature/') || contains(github.head_ref, 'fix/') || contains(github.head_ref, 'refactor/') || contains(github.head_ref, 'docs/') || contains(github.head_ref, 'perf/') || contains(github.head_ref, 'test/')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
@@ -58,11 +61,11 @@ jobs:
     if: success() || failure()
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           token: ${{ secrets.DEVFLOW_PAT }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
@@ -100,11 +103,11 @@ jobs:
     needs: auto-review
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           token: ${{ secrets.DEVFLOW_PAT }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
           cache: pip
