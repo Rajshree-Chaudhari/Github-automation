@@ -22,7 +22,7 @@ on:
       dry_run:
         description: "Dry run (no real commits)"
         required: false
-        default: "false"
+        default: false
         type: boolean
       delay_seconds:
         description: "Organic delay in seconds (0 = immediate)"
@@ -105,7 +105,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-cov flake8 black isort mypy
+          pip install pytest pytest-cov flake8 black isort mypy types-requests
 
       - name: Lint — flake8
         run: flake8 src/ scripts/ config/ --max-line-length=120 --ignore=E203,W503

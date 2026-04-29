@@ -106,7 +106,8 @@ class DevFlowOrchestrator:
     def _create_branch_and_commit(self, changes: list, change_type: str):
         logger.info(f"Creating branch: {self.branch_name}")
         base_sha = self.github.get_branch_sha(self.settings.default_branch)
-        self.github.create_branch(self.branch_name, base_sha)
+        if not self.github.branch_exists(self.branch_name):
+            self.github.create_branch(self.branch_name, base_sha)
 
         for change in changes:
             commit_message = self.code_gen.generate_commit_message(change_type, change)

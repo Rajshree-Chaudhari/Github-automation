@@ -145,7 +145,7 @@ class ReviewBot:
 
     def _generate_inline_comments(self, pr_files: list, change_type: str) -> list:
         """Generate position-based inline comments on changed files."""
-        comments = []
+        comments: list[dict] = []
 
         if not pr_files:
             return comments

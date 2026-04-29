@@ -7,8 +7,8 @@ Handles all GitHub REST API interactions with rate limiting and error handling.
 import base64
 import time
 import logging
+from typing import Any, Optional
 import requests
-from typing import Optional
 from config.settings import Settings
 
 logger = logging.getLogger("github_client")
@@ -42,7 +42,7 @@ class GitHubClient:
     def _url(self, path: str) -> str:
         return f"{self.BASE_URL}/repos/{self.owner}/{self.repo}{path}"
 
-    def _request(self, method: str, url: str, **kwargs) -> dict:
+    def _request(self, method: str, url: str, **kwargs) -> Any:
         self._check_rate_limit()
         response = self.session.request(method, url, **kwargs)
 
@@ -81,6 +81,15 @@ class GitHubClient:
     def get_branch_sha(self, branch: str) -> str:
         data = self._request("GET", self._url(f"/git/ref/heads/{branch}"))
         return data["object"]["sha"]
+
+    def branch_exists(self, branch_name: str) -> bool:
+        try:
+            self._request("GET", self._url(f"/git/ref/heads/{branch_name}"))
+            return True
+        except GitHubAPIError as e:
+            if e.status_code == 404:
+                return False
+            raise
 
     def create_branch(self, branch_name: str, sha: str) -> dict:
         return self._request("POST", self._url("/git/refs"), json={
@@ -149,7 +158,8 @@ class GitHubClient:
         return self._request("POST", self._url(f"/pulls/{pr_number}/reviews"), json=payload)
 
     def get_pr_files(self, pr_number: int) -> list:
-        return self._request("GET", self._url(f"/pulls/{pr_number}/files"))
+        result = self._request("GET", self._url(f"/pulls/{pr_number}/files"))
+        return result if isinstance(result, list) else []
 
     def get_pr_diff(self, pr_number: int) -> str:
         response = self.session.get(
@@ -176,7 +186,8 @@ class GitHubClient:
         return self._request("PUT", self._url(f"/pulls/{pr_number}/merge"), json=payload)
 
     def get_pr_commits(self, pr_number: int) -> list:
-        return self._request("GET", self._url(f"/pulls/{pr_number}/commits"))
+        result = self._request("GET", self._url(f"/pulls/{pr_number}/commits"))
+        return result if isinstance(result, list) else []
 
     # ─── Repository Info ───────────────────────────────────────────────────────
 
