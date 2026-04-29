@@ -18,7 +18,7 @@ from config.settings import Settings  # noqa: E402
 from src.generators.code_generator import CodeGenerator  # noqa: E402
 from src.generators.pr_generator import PRGenerator  # noqa: E402
 from src.reviewers.review_bot import ReviewBot  # noqa: E402
-from src.utils.github_client import GitHubClient  # noqa: E402
+from src.utils.github_client import GitHubAPIError, GitHubClient  # noqa: E402
 from src.utils.logger import setup_logger  # noqa: E402
 from src.utils.retry import retry_with_backoff  # noqa: E402
 
@@ -136,15 +136,25 @@ class DevFlowOrchestrator:
 
     @retry_with_backoff(max_retries=3, backoff_factor=2)
     def _approve_and_merge(self):
-        logger.info(f"Approving PR #{self.pr_number}")
+        logger.info(f"Merging PR #{self.pr_number}")
 
-        if not self.github.is_pr_mergeable(self.pr_number):
-            logger.warning("PR not mergeable, waiting for checks...")
+        pr = self.github._request("GET", self.github._url(f"/pulls/{self.pr_number}"))
+        if pr.get("state") != "open":
+            logger.info(f"PR #{self.pr_number} already closed — skipping")
+            return
+
+        mergeable = pr.get("mergeable")
+        if mergeable is None:
+            logger.warning("Mergeable status unknown — retrying...")
+            time.sleep(10)
+            raise GitHubAPIError("Mergeable status not ready", status_code=0)
+
+        if not mergeable:
+            logger.warning(f"PR #{self.pr_number} not mergeable, waiting for checks...")
             time.sleep(60)
+            raise GitHubAPIError("PR not mergeable", status_code=0)
 
-        self.github.approve_pull_request(self.pr_number)
-        time.sleep(random.randint(10, 30))
-
+        time.sleep(random.randint(5, 15))
         merge_method = random.choice(["squash", "merge"])
         self.github.merge_pull_request(
             pr_number=self.pr_number,
