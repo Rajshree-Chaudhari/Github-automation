@@ -5,8 +5,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
-### Added
-- 2026-04-29: - Session Management: New feature implementation
+### Fixed
+- 2026-04-29: - Null Pointer Login: Bug fix applied
 
 ## [1.0.0] - 2025-01-01
 
