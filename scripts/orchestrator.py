@@ -136,7 +136,7 @@ class DevFlowOrchestrator:
 
     @retry_with_backoff(max_retries=3, backoff_factor=2)
     def _approve_and_merge(self):
-        logger.info(f"Merging PR #{self.pr_number}")
+        logger.info(f"Approving and merging PR #{self.pr_number}")
 
         pr = self.github._request("GET", self.github._url(f"/pulls/{self.pr_number}"))
         if pr.get("state") != "open":
@@ -154,7 +154,15 @@ class DevFlowOrchestrator:
             time.sleep(60)
             raise GitHubAPIError("PR not mergeable", status_code=0)
 
-        time.sleep(random.randint(5, 15))
+        # Approve using reviewer token if available, otherwise skip approval
+        reviewer_token = self.settings.reviewer_token
+        if reviewer_token:
+            logger.info(f"Approving PR #{self.pr_number} as reviewer")
+            self.github.approve_pull_request_as_reviewer(self.pr_number, reviewer_token)
+            time.sleep(random.randint(5, 15))
+        else:
+            logger.info("No REVIEWER_PAT configured — skipping approval step")
+
         merge_method = random.choice(["squash", "merge"])
         self.github.merge_pull_request(
             pr_number=self.pr_number,

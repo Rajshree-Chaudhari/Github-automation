@@ -22,6 +22,7 @@ def _require_env(key: str) -> str:
 class Settings:
     # GitHub credentials
     github_token: str = field(default_factory=lambda: _require_env("GITHUB_TOKEN"))
+    reviewer_token: str = field(default_factory=lambda: os.getenv("REVIEWER_PAT", ""))
     repo_owner: str = field(default_factory=lambda: _require_env("REPO_OWNER"))
     repo_name: str = field(default_factory=lambda: _require_env("REPO_NAME"))
 

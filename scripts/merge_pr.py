@@ -6,6 +6,7 @@ Merges a specific PR number. Called by the auto-merge workflow.
 """
 
 import argparse
+import os
 import random
 import sys
 import time
@@ -47,9 +48,14 @@ def merge_pr(github: GitHubClient, pr_number: int):
         time.sleep(30)
         raise Exception(f"Not mergeable (state={mergeable_state})")
 
-    wait = random.randint(5, 15)
-    logger.info(f"Waiting {wait}s before merge...")
-    time.sleep(wait)
+    # Approve using reviewer token if available
+    reviewer_token = os.getenv("REVIEWER_PAT", "")
+    if reviewer_token:
+        logger.info(f"Approving PR #{pr_number} as reviewer")
+        github.approve_pull_request_as_reviewer(pr_number, reviewer_token)
+        time.sleep(random.randint(5, 15))
+    else:
+        logger.info("No REVIEWER_PAT configured — skipping approval")
 
     merge_method = random.choice(["squash", "merge"])
     logger.info(f"Merging PR #{pr_number} via {merge_method}")

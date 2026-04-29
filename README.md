@@ -139,7 +139,11 @@ git clone https://github.com/DeepDN/Github-automation.git
 cd Github-automation
 ```
 
-### 2. Create a GitHub Personal Access Token (PAT)
+### 2. Create GitHub Personal Access Tokens (PATs)
+
+You need **two GitHub accounts** — one to author PRs, one to approve them (GitHub blocks self-approval).
+
+#### Main Account Token (`DEVFLOW_PAT`)
 
 Go to: **GitHub → Settings → Developer Settings → Personal Access Tokens → Fine-grained tokens**
 
@@ -149,15 +153,26 @@ Required permissions:
 - `Issues` — Read & Write
 - `Metadata` — Read
 
+#### Reviewer Account Token (`REVIEWER_PAT`)
+
+Log into your **second GitHub account** and generate a Fine-grained token for the same repository.
+
+Required permissions:
+- `Pull requests` — Read & Write
+- `Metadata` — Read
+
 ### 3. Add GitHub Actions Secrets
 
 In your repository: **Settings → Secrets and variables → Actions → New repository secret**
 
 | Secret | Value |
 |--------|-------|
-| `DEVFLOW_PAT` | Your GitHub Personal Access Token |
-| `GIT_USER_NAME` | Your GitHub display name |
-| `GIT_USER_EMAIL` | Your GitHub email address |
+| `DEVFLOW_PAT` | Main account PAT (creates branches, commits, PRs, merges) |
+| `REVIEWER_PAT` | Second account PAT (approves PRs) |
+| `GIT_USER_NAME` | Your main GitHub display name |
+| `GIT_USER_EMAIL` | Your main GitHub email address |
+
+> **Note:** `REVIEWER_PAT` is optional. If not set, the approval step is skipped and PRs are merged directly. All other activity (commits, PRs, reviews, merges) still counts on your contribution graph.
 
 ### 4. Enable GitHub Actions
 
@@ -193,7 +208,8 @@ All configuration is via environment variables:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GITHUB_TOKEN` | ✅ | — | GitHub PAT with repo + PR permissions |
+| `GITHUB_TOKEN` | ✅ | — | Main account PAT — creates branches, commits, PRs, merges |
+| `REVIEWER_PAT` | ❌ | — | Second account PAT — approves PRs (skipped if not set) |
 | `REPO_OWNER` | ✅ | — | Repository owner (GitHub username/org) |
 | `REPO_NAME` | ✅ | — | Repository name |
 | `PROJECT_NAME` | ❌ | `devflow-automator` | Used in commit messages |
@@ -222,7 +238,7 @@ All configuration is via environment variables:
 **Steps:**
 1. **CI Checks** — lint, test, security scan (bandit)
 2. **Auto Review** — wait 30–150s, post inline comments + summary
-3. **Auto Merge** — wait 60–240s, approve, squash/merge, delete branch
+3. **Auto Merge** — wait 60–240s, approve via `REVIEWER_PAT` (second account), squash/merge via `DEVFLOW_PAT`, delete branch
 
 ### Weekly Maintenance (`weekly-maintenance.yml`)
 
@@ -276,6 +292,8 @@ pytest tests/ -v --cov=src --cov-report=term-missing
 ## Important Notes
 
 - All PRs and commits are made under **your GitHub identity** (via your PAT) — contributions will count on your profile graph
+- PR approvals are made by the **second GitHub account** (`REVIEWER_PAT`) — GitHub blocks self-approval, so two tokens are required for a full review → approve → merge lifecycle
+- If `REVIEWER_PAT` is not configured, the approval step is skipped gracefully and PRs are merged directly
 - The organic delay system (random 0–60 min sleep) prevents identical timestamp patterns
 - Branch naming, commit messages, and PR content use professional vocabulary pools to avoid repetition
 - The system handles GitHub API rate limits automatically
