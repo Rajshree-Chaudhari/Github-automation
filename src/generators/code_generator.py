@@ -5,11 +5,11 @@ Produces realistic, varied code changes across multiple categories.
 Simulates genuine day-to-day development work.
 """
 
+import logging
 import random
 import string
-import logging
 from datetime import datetime
-from typing import Optional
+
 from config.settings import Settings
 
 logger = logging.getLogger("code_generator")
@@ -17,11 +17,11 @@ logger = logging.getLogger("code_generator")
 # ─── Change Type Weights (simulate realistic dev distribution) ─────────────────
 CHANGE_WEIGHTS = {
     "feature": 30,
-    "fix":     25,
+    "fix": 25,
     "refactor": 20,
-    "docs":    10,
-    "perf":    10,
-    "test":     5,
+    "docs": 10,
+    "perf": 10,
+    "test": 5,
 }
 
 # ─── Branch Name Vocabularies ──────────────────────────────────────────────────
@@ -50,11 +50,11 @@ REFACTOR_NAMES = [
 
 COMMIT_VERBS = {
     "feature": ["add", "implement", "introduce", "build", "create"],
-    "fix":     ["fix", "resolve", "patch", "correct", "address"],
+    "fix": ["fix", "resolve", "patch", "correct", "address"],
     "refactor": ["refactor", "simplify", "reorganize", "clean up", "restructure"],
-    "docs":    ["update", "document", "add", "clarify", "expand"],
-    "perf":    ["optimize", "improve", "enhance", "speed up", "cache"],
-    "test":    ["add tests for", "cover", "test", "validate", "assert"]
+    "docs": ["update", "document", "add", "clarify", "expand"],
+    "perf": ["optimize", "improve", "enhance", "speed up", "cache"],
+    "test": ["add tests for", "cover", "test", "validate", "assert"],
 }
 
 
@@ -111,11 +111,11 @@ class CodeGenerator:
     def generate_changes(self, change_type: str) -> list:
         generators = {
             "feature": self._gen_feature_changes,
-            "fix":     self._gen_fix_changes,
+            "fix": self._gen_fix_changes,
             "refactor": self._gen_refactor_changes,
-            "docs":    self._gen_docs_changes,
-            "perf":    self._gen_perf_changes,
-            "test":    self._gen_test_changes,
+            "docs": self._gen_docs_changes,
+            "perf": self._gen_perf_changes,
+            "test": self._gen_test_changes,
         }
         return generators.get(change_type, self._gen_feature_changes)()
 
@@ -209,7 +209,7 @@ class CodeGenerator:
     # ─── Code Templates ────────────────────────────────────────────────────────
 
     def _python_service(self, feature: str) -> str:
-        class_name = "".join(w.capitalize() for w in feature.split("-")) + "Service"
+        class_name = "".join(w.capitalize() for w in feature.split("-")) + "Service"  # noqa: F841
         return f'''"""
 {class_name}
 Handles business logic for {feature} functionality.

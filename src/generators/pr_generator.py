@@ -4,10 +4,10 @@ PR Generator
 Produces professional, realistic PR titles and descriptions.
 """
 
-import random
 import logging
+import random
 from datetime import datetime
-from typing import Optional
+
 from config.settings import Settings
 
 logger = logging.getLogger("pr_generator")
@@ -312,7 +312,7 @@ class PRGenerator:
             summary=summary,
             motivation=motivation,
             changes_list=changes_list,
-            related=related
+            related=related,
         )
 
         body += f"\n\n---\n*Auto-generated workflow run — {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}*\n"
@@ -328,11 +328,9 @@ class PRGenerator:
             desc = changes[0].get("description", "")
             if desc:
                 return desc.split(" ")[0]
-        # Fallback: extract from branch name
         parts = branch_name.split("/")
         if len(parts) > 1:
-            name_part = parts[1].rsplit("-", 1)[0]
-            return name_part
+            return parts[1].rsplit("-", 1)[0]
         return "core module"
 
     def _format_changes_list(self, changes: list) -> str:

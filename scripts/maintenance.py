@@ -4,17 +4,16 @@ Maintenance Script
 Prunes stale branches and generates activity reports.
 """
 
-import sys
 import argparse
-import logging
-from pathlib import Path
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import Settings
-from src.utils.github_client import GitHubClient
-from src.utils.logger import setup_logger
+from config.settings import Settings  # noqa: E402
+from src.utils.github_client import GitHubClient  # noqa: E402
+from src.utils.logger import setup_logger  # noqa: E402
 
 logger = setup_logger("maintenance")
 
@@ -39,7 +38,9 @@ def prune_stale_branches(github: GitHubClient, older_than_days: int = 7):
             continue
 
         try:
-            commit = github._request("GET", github._url(f"/commits/{branch['commit']['sha']}"))
+            commit = github._request(
+                "GET", github._url(f"/commits/{branch['commit']['sha']}")
+            )
             committed_at_str = commit.get("commit", {}).get("committer", {}).get("date", "")
             if not committed_at_str:
                 continue

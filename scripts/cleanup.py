@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Cleanup script for failed automation runs."""
 
-import sys
 import argparse
-import logging
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import Settings
-from src.utils.github_client import GitHubClient
-from src.utils.logger import setup_logger
+from config.settings import Settings  # noqa: E402
+from src.utils.github_client import GitHubClient  # noqa: E402
+from src.utils.logger import setup_logger  # noqa: E402
 
 logger = setup_logger("cleanup")
 
@@ -28,9 +27,11 @@ def main():
             pr = github._request("GET", github._url(f"/pulls/{args.pr_number}"))
             branch = pr.get("head", {}).get("ref")
             if branch and pr.get("state") == "open":
-                # Close the PR first
-                github._request("PATCH", github._url(f"/pulls/{args.pr_number}"),
-                               json={"state": "closed"})
+                github._request(
+                    "PATCH",
+                    github._url(f"/pulls/{args.pr_number}"),
+                    json={"state": "closed"},
+                )
                 logger.info(f"Closed PR #{args.pr_number}")
             if branch:
                 github.delete_branch(branch)

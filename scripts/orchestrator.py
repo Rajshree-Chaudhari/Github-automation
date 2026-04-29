@@ -4,25 +4,23 @@ DevFlow Automator - Main Orchestrator
 Coordinates the full PR lifecycle: branch → changes → PR → review → merge
 """
 
-import os
+import argparse
+import logging
+import random
 import sys
 import time
-import random
-import logging
-import argparse
 from datetime import datetime
 from pathlib import Path
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.generators.code_generator import CodeGenerator
-from src.generators.pr_generator import PRGenerator
-from src.reviewers.review_bot import ReviewBot
-from src.utils.github_client import GitHubClient
-from src.utils.logger import setup_logger
-from src.utils.retry import retry_with_backoff
-from config.settings import Settings
+from config.settings import Settings  # noqa: E402
+from src.generators.code_generator import CodeGenerator  # noqa: E402
+from src.generators.pr_generator import PRGenerator  # noqa: E402
+from src.reviewers.review_bot import ReviewBot  # noqa: E402
+from src.utils.github_client import GitHubClient  # noqa: E402
+from src.utils.logger import setup_logger  # noqa: E402
+from src.utils.retry import retry_with_backoff  # noqa: E402
 
 logger = setup_logger("orchestrator")
 
@@ -30,8 +28,14 @@ logger = setup_logger("orchestrator")
 def parse_args():
     parser = argparse.ArgumentParser(description="DevFlow Automator Orchestrator")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without making real changes")
-    parser.add_argument("--delay", type=int, default=0, help="Initial delay in seconds (for randomized scheduling)")
-    parser.add_argument("--change-type", choices=["feature", "fix", "refactor", "docs", "perf", "test"], help="Force a specific change type")
+    parser.add_argument(
+        "--delay", type=int, default=0, help="Initial delay in seconds (for randomized scheduling)"
+    )
+    parser.add_argument(
+        "--change-type",
+        choices=["feature", "fix", "refactor", "docs", "perf", "test"],
+        help="Force a specific change type",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     return parser.parse_args()
 
@@ -62,35 +66,28 @@ class DevFlowOrchestrator:
         logger.info(f"Dry run: {self.dry_run}")
 
         try:
-            # Step 1: Select change type
             change_type = change_type or self.code_gen.select_change_type()
             logger.info(f"Selected change type: {change_type}")
 
-            # Step 2: Generate branch name
             self.branch_name = self.code_gen.generate_branch_name(change_type)
             logger.info(f"Branch name: {self.branch_name}")
 
-            # Step 3: Generate code changes
             changes = self.code_gen.generate_changes(change_type)
             logger.info(f"Generated {len(changes)} file change(s)")
 
-            # Step 4: Create branch and commit changes
             if not self.dry_run:
                 self._create_branch_and_commit(changes, change_type)
 
-            # Step 5: Create Pull Request
             pr_data = self.pr_gen.generate_pr(change_type, changes, self.branch_name)
             if not self.dry_run:
                 self.pr_number = self._create_pull_request(pr_data)
                 logger.info(f"PR #{self.pr_number} created successfully")
 
-            # Step 6: Automated review
-            time.sleep(random.randint(30, 120))  # Simulate review think time
+            time.sleep(random.randint(30, 120))
             if not self.dry_run and self.pr_number:
                 self._perform_review(change_type, changes)
 
-            # Step 7: Approve and merge
-            time.sleep(random.randint(60, 300))  # Simulate approval delay
+            time.sleep(random.randint(60, 300))
             if not self.dry_run and self.pr_number:
                 self._approve_and_merge()
 
@@ -116,10 +113,10 @@ class DevFlowOrchestrator:
                 path=change["path"],
                 content=change["content"],
                 message=commit_message,
-                existing_sha=change.get("existing_sha")
+                existing_sha=change.get("existing_sha"),
             )
             logger.info(f"Committed: {change['path']}")
-            time.sleep(random.uniform(0.5, 2.0))  # Rate limit safety
+            time.sleep(random.uniform(0.5, 2.0))
 
     @retry_with_backoff(max_retries=3, backoff_factor=2)
     def _create_pull_request(self, pr_data: dict) -> int:
@@ -128,7 +125,7 @@ class DevFlowOrchestrator:
             body=pr_data["body"],
             head=self.branch_name,
             base=self.settings.default_branch,
-            labels=pr_data.get("labels", [])
+            labels=pr_data.get("labels", []),
         )
         return pr["number"]
 
@@ -141,31 +138,26 @@ class DevFlowOrchestrator:
     def _approve_and_merge(self):
         logger.info(f"Approving PR #{self.pr_number}")
 
-        # Check merge conditions
         if not self.github.is_pr_mergeable(self.pr_number):
             logger.warning("PR not mergeable, waiting for checks...")
             time.sleep(60)
 
-        # Approve the PR
         self.github.approve_pull_request(self.pr_number)
         time.sleep(random.randint(10, 30))
 
-        # Merge the PR
-        merge_method = random.choice(["squash", "merge"])  # Vary merge methods
+        merge_method = random.choice(["squash", "merge"])
         self.github.merge_pull_request(
             pr_number=self.pr_number,
             merge_method=merge_method,
-            commit_title=f"Merge PR #{self.pr_number}"
+            commit_title=f"Merge PR #{self.pr_number}",
         )
         logger.info(f"PR #{self.pr_number} merged via {merge_method}")
 
-        # Cleanup branch
         self.github.delete_branch(self.branch_name)
         logger.info(f"Branch {self.branch_name} deleted")
 
     def _handle_failure(self, error: Exception):
         logger.error(f"Failure in run {self.run_id}: {error}")
-        # Attempt to cleanup orphan branch
         if self.branch_name and not self.dry_run:
             try:
                 self.github.delete_branch(self.branch_name)
@@ -180,7 +172,6 @@ def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    # Apply randomized delay for organic scheduling
     if args.delay > 0:
         apply_random_delay(args.delay)
 

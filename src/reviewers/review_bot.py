@@ -5,11 +5,11 @@ Generates professional, context-aware PR review comments.
 Simulates senior engineer review patterns.
 """
 
+import logging
 import random
 import time
-import logging
 from datetime import datetime
-from typing import Optional
+
 from config.settings import Settings
 from src.utils.github_client import GitHubClient
 
@@ -50,26 +50,56 @@ INLINE_COMMENTS = {
 
 REVIEW_SUMMARIES = {
     "feature": [
-        "Solid implementation overall. The service layer is well-structured and the error handling is thoughtful. Left a few minor suggestions inline — nothing blocking.",
-        "Good work on this feature. The API endpoints follow our existing conventions nicely. A couple of nits below, but happy to approve once those are addressed.",
-        "This is a clean addition. Tests cover the happy path well — we may want to add more edge case coverage in a follow-up, but that shouldn't block this PR.",
+        (
+            "Solid implementation overall. The service layer is well-structured and the error "
+            "handling is thoughtful. Left a few minor suggestions inline — nothing blocking."
+        ),
+        (
+            "Good work on this feature. The API endpoints follow our existing conventions nicely. "
+            "A couple of nits below, but happy to approve once those are addressed."
+        ),
+        (
+            "This is a clean addition. Tests cover the happy path well — we may want to add more "
+            "edge case coverage in a follow-up, but that shouldn't block this PR."
+        ),
     ],
     "fix": [
-        "The root cause analysis is thorough and the fix is appropriately scoped. Good that we have a regression test now. LGTM.",
-        "Targeted fix — exactly what's needed. The guard clause approach is the right call here. Regression test is well-placed.",
-        "Clean fix with proper test coverage. Appreciate that we're not over-engineering the solution. Approving.",
+        (
+            "The root cause analysis is thorough and the fix is appropriately scoped. "
+            "Good that we have a regression test now. LGTM."
+        ),
+        (
+            "Targeted fix — exactly what's needed. The guard clause approach is the right call here. "
+            "Regression test is well-placed."
+        ),
+        (
+            "Clean fix with proper test coverage. Appreciate that we're not over-engineering "
+            "the solution. Approving."
+        ),
     ],
     "refactor": [
-        "Nice cleanup. The abstraction boundaries are clearer now and the dependency injection makes this much more testable. No functional changes confirmed.",
-        "Good refactor — the Protocol-based approach gives us flexibility to swap implementations easily. Existing tests still passing is the key signal here.",
-        "Clean structural improvement. The code reads more clearly and the single-responsibility principle is much better respected. LGTM.",
+        (
+            "Nice cleanup. The abstraction boundaries are clearer now and the dependency injection "
+            "makes this much more testable. No functional changes confirmed."
+        ),
+        (
+            "Good refactor — the Protocol-based approach gives us flexibility to swap implementations "
+            "easily. Existing tests still passing is the key signal here."
+        ),
+        (
+            "Clean structural improvement. The code reads more clearly and the single-responsibility "
+            "principle is much better respected. LGTM."
+        ),
     ],
     "docs": [
         "Documentation is clear and accurate. The examples are helpful additions. LGTM.",
         "Good update — the API table is particularly useful for new consumers. Minor formatting note below.",
     ],
     "perf": [
-        "Impressive benchmark improvement. The LRU cache implementation is clean and the TTL logic is correct. Load test results are convincing. Approving.",
+        (
+            "Impressive benchmark improvement. The LRU cache implementation is clean and the TTL "
+            "logic is correct. Load test results are convincing. Approving."
+        ),
         "The batch processor approach makes sense for this use case. The performance numbers speak for themselves. Good work.",
     ],
     "test": [
@@ -96,36 +126,29 @@ class ReviewBot:
         """Perform a full automated review: inline comments + summary review."""
         logger.info(f"Starting review for PR #{pr_number} (type: {change_type})")
 
-        # Step 1: Post an initial "looking into this" comment (optional, realistic)
         if random.random() > 0.6:
             self._post_initial_comment(pr_number)
             time.sleep(random.randint(15, 45))
 
-        # Step 2: Fetch PR files for context
         try:
             pr_files = self.github.get_pr_files(pr_number)
         except Exception as e:
             logger.warning(f"Could not fetch PR files: {e}")
             pr_files = []
 
-        # Step 3: Generate inline review comments
         inline_comments = self._generate_inline_comments(pr_files, change_type)
-
-        # Step 4: Generate the overall review summary
         summary = self._generate_summary(change_type, len(inline_comments))
 
-        # Step 5: Submit the review
         try:
             self.github.create_review(
                 pr_number=pr_number,
                 body=summary,
-                event="COMMENT",      # First pass: comment only
-                comments=inline_comments[:3] if inline_comments else []  # Max 3 inline
+                event="COMMENT",
+                comments=inline_comments[:3] if inline_comments else [],
             )
             logger.info(f"Review submitted for PR #{pr_number}")
         except Exception as e:
             logger.error(f"Failed to submit review: {e}")
-            # Fallback: at least post the summary as a comment
             try:
                 self.github.add_pr_comment(pr_number, summary)
             except Exception as e2:
@@ -150,7 +173,6 @@ class ReviewBot:
         if not pr_files:
             return comments
 
-        # Pick 1-3 files to comment on
         files_to_comment = random.sample(pr_files, min(len(pr_files), random.randint(1, 3)))
 
         for file_info in files_to_comment:
@@ -160,42 +182,37 @@ class ReviewBot:
             if not patch:
                 continue
 
-            # Find a valid position in the patch
             lines = patch.split("\n")
-            valid_positions = [i + 1 for i, line in enumerate(lines) if line.startswith("+") and not line.startswith("+++")]
+            valid_positions = [
+                i + 1
+                for i, line in enumerate(lines)
+                if line.startswith("+") and not line.startswith("+++")
+            ]
 
             if not valid_positions:
                 continue
 
             position = random.choice(valid_positions)
             comment_body = self._pick_comment(change_type, filename)
-
-            comments.append({
-                "path": filename,
-                "position": position,
-                "body": comment_body
-            })
+            comments.append({"path": filename, "position": position, "body": comment_body})
 
         return comments
 
     def _pick_comment(self, change_type: str, filename: str) -> str:
-        # Weight: 40% positive, 40% suggestion, 20% question
         category = random.choices(
-            ["positive", "suggestions", "questions"],
-            weights=[40, 40, 20]
+            ["positive", "suggestions", "questions"], weights=[40, 40, 20]
         )[0]
-
         comment = random.choice(INLINE_COMMENTS[category])
 
-        # Add file-specific context occasionally
         if random.random() > 0.7 and filename:
             ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
             if ext == "py":
-                comment += " " + random.choice([
-                    "Might also want to add a `py.typed` marker if this becomes a library.",
-                    "Consider using `__slots__` here if this class is instantiated heavily.",
-                ])
-
+                comment += " " + random.choice(
+                    [
+                        "Might also want to add a `py.typed` marker if this becomes a library.",
+                        "Consider using `__slots__` here if this class is instantiated heavily.",
+                    ]
+                )
         return comment
 
     def _generate_summary(self, change_type: str, comment_count: int) -> str:
@@ -206,7 +223,10 @@ class ReviewBot:
         parts.append(summary)
 
         if comment_count > 0:
-            parts.append(f"\nLeft {comment_count} inline comment{'s' if comment_count > 1 else ''} — see individual notes above.")
+            parts.append(
+                f"\nLeft {comment_count} inline comment{'s' if comment_count > 1 else ''}"
+                " — see individual notes above."
+            )
 
         if random.random() > 0.6:
             parts.append(f"\n> 💡 {random.choice(ACTION_ITEMS)}")

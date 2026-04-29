@@ -4,23 +4,21 @@ Weekly Report Generator
 Summarizes automation activity for the past 7 days.
 """
 
-import sys
 import json
-import logging
-from pathlib import Path
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import Settings
-from src.utils.github_client import GitHubClient
-from src.utils.logger import setup_logger
+from config.settings import Settings  # noqa: E402
+from src.utils.github_client import GitHubClient  # noqa: E402
+from src.utils.logger import setup_logger  # noqa: E402
 
 logger = setup_logger("weekly_report")
 
 
 def generate_report(github: GitHubClient, settings: Settings) -> dict:
-    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "period": "last_7_days",
@@ -32,7 +30,9 @@ def generate_report(github: GitHubClient, settings: Settings) -> dict:
     }
 
     try:
-        pulls = github._request("GET", github._url(f"/pulls?state=all&per_page=100&sort=created&direction=desc"))
+        pulls = github._request(
+            "GET", github._url("/pulls?state=all&per_page=100&sort=created&direction=desc")
+        )
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
         for pr in pulls:

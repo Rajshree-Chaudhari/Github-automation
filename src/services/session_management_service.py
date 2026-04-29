@@ -5,9 +5,9 @@ Auto-generated module — 2026-04-29
 """
 
 import logging
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class SessionManagementService:
             return
         self._setup_internal_state()
         self._initialized = True
-        logger.info(f"SessionManagementService ready")
+        logger.info("SessionManagementService ready")
 
     def _setup_internal_state(self) -> None:
         self._cache.clear()

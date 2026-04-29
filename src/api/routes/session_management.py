@@ -3,9 +3,10 @@ API Routes: session-management
 RESTful endpoints for session-management resource management.
 """
 
-from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
 import logging
+
+from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("session_management", __name__, url_prefix="/api/v1/session-management")
@@ -60,7 +61,7 @@ def create_item():
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON body"}), 400
-    logger.info(f"Creating session_management item")
+    logger.info("Creating session_management item")
     return jsonify({"id": "new-id", "created": True}), 201
 
 
